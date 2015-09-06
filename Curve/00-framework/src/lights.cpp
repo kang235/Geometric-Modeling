@@ -33,9 +33,9 @@ using namespace std;
 LightC::LightC()
 {
 	lPos=glm::vec4(0,0,0,1);
-	la=glm::vec3(0,0,0);
-	ls=glm::vec3(1,1,1);
-	ld=glm::vec3(0.7,0.7,0.7);
+	la=glm::vec3(1,1,1);
+	ls=glm::vec3(0,0,0);
+	ld=glm::vec3(0,0,0);
 }
 void LightC::SetShaders()
 {

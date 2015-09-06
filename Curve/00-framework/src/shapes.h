@@ -102,5 +102,20 @@ private:
   void Generate(int steps);
 };
 
+//derived class from ShapesC
+class CurveC : public ShapesC
+{
+public:
+	CurveC();
+	CurveC(int stacks);
+	virtual void Render();
+	glm::vec3 GetVetex(int index);
+private:
+	vector <GLfloat> vertexCopy;
+	GLuint vertexCount;
+	void InitArrays();
+	void Generate(int steps);
+};
+
 
 #endif

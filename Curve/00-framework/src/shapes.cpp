@@ -38,7 +38,6 @@ void ShapesC::SetModelViewN(glm::mat3 tmp)
 	modelViewN=tmp;
 }
 
-
 void ShapesC::SetModelMatrixParamToShader(GLuint uniform)
 {
   modelParameter=uniform;
@@ -48,7 +47,6 @@ void ShapesC::SetModelViewNMatrixParamToShader(GLuint uniform)
 {
   modelViewNParameter=uniform;
 }
-
 
 void ShapesC::SetColor(GLubyte r,GLubyte b,GLubyte g)
 {
@@ -175,17 +173,16 @@ SphereC::SphereC(int stacks, int slices, GLfloat r)
 
 void CubeC::InitArrays()
 {
-	glGenVertexArrays(1,&vaID);
+	glGenVertexArrays(1, &vaID);
 	glBindVertexArray(vaID);
 	glGenBuffers(1, &buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	points=vertex.size();
+	points = vertex.size();
 	glBufferData(GL_ARRAY_BUFFER, points*sizeof(GLfloat), &vertex[0], GL_STATIC_DRAW);
-	glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0); 
+	glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
 	vertex.clear(); //no need for the vertex data, it is on the GPU now
 }
-
 
 CubeC::CubeC()
 {
@@ -231,15 +228,31 @@ void CubeC::Render()
 
 void CircleC::InitArrays()
 {
-	glGenVertexArrays(1,&vaID);
+	points = vertex.size();
+	normals = normal.size();
+
+	//get the vertex array handle and bind it
+	glGenVertexArrays(1, &vaID);
 	glBindVertexArray(vaID);
-	glGenBuffers(1, &buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	points=vertex.size();
+
+	//the vertex array will have two vbos, vertices and normals
+	glGenBuffers(2, vboHandles);
+	GLuint verticesID = vboHandles[0];
+	GLuint normalsID = vboHandles[1];
+
+	//send vertices
+	glBindBuffer(GL_ARRAY_BUFFER, verticesID);
 	glBufferData(GL_ARRAY_BUFFER, points*sizeof(GLfloat), &vertex[0], GL_STATIC_DRAW);
-	glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0); 
+	glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
 	vertex.clear(); //no need for the vertex data, it is on the GPU now
+
+	//send normals
+	glBindBuffer(GL_ARRAY_BUFFER, normalsID);
+	glBufferData(GL_ARRAY_BUFFER, normals*sizeof(GLfloat), &normal[0], GL_STATIC_DRAW);
+	glVertexAttribPointer((GLuint)1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+	normal.clear(); //no need for the normal data, it is on the GPU now
 }
 
 CircleC::CircleC(int steps)
@@ -247,8 +260,6 @@ CircleC::CircleC(int steps)
 	Generate(steps);	
 	InitArrays();
 }
-
-
 
 CircleC::CircleC()
 {
@@ -277,10 +288,116 @@ void CircleC::Generate(int steps)
 void CircleC::Render()
 {
 	glBindVertexArray(vaID);
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glEnableVertexAttribArray(0);
-    glUniformMatrix4fv(modelParameter,1,GL_FALSE,glm::value_ptr(model));
-	glPointSize(10);
-	glDrawArrays(GL_LINE_LOOP, 0, points/3); //Should be 1/3. Why?
+	//material properties
+	glUniform3fv(kaParameter, 1, glm::value_ptr(ka));
+	glUniform3fv(kdParameter, 1, glm::value_ptr(kd));
+	glUniform3fv(ksParameter, 1, glm::value_ptr(ks));
+	glUniform1fv(shParameter, 1, &sh);
+	//model matrix
+	glUniformMatrix4fv(modelParameter, 1, GL_FALSE, glm::value_ptr(model));
+	//model for normals
+	glUniformMatrix3fv(modelViewNParameter, 1, GL_FALSE, glm::value_ptr(modelViewN));
+	glDrawArrays(GL_LINE_LOOP, 0, points / 3);
 }
+
+//Curve
+
+void CurveC::InitArrays()
+{
+	points = vertex.size();
+	normals = normal.size();
+
+	//get the vertex array handle and bind it
+	glGenVertexArrays(1, &vaID);
+	glBindVertexArray(vaID);
+
+	//the vertex array will have two vbos, vertices and normals
+	glGenBuffers(2, vboHandles);
+	GLuint verticesID = vboHandles[0];
+	GLuint normalsID = vboHandles[1];
+
+	//send vertices
+	glBindBuffer(GL_ARRAY_BUFFER, verticesID);
+	glBufferData(GL_ARRAY_BUFFER, points*sizeof(GLfloat), &vertex[0], GL_STATIC_DRAW);
+	glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+	vertex.clear(); //no need for the vertex data, it is on the GPU now
+
+	//send normals
+	glBindBuffer(GL_ARRAY_BUFFER, normalsID);
+	glBufferData(GL_ARRAY_BUFFER, normals*sizeof(GLfloat), &normal[0], GL_STATIC_DRAW);
+	glVertexAttribPointer((GLuint)1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+	normal.clear(); //no need for the normal data, it is on the GPU now
+}
+
+CurveC::CurveC(int steps)
+{
+	Generate(steps);
+	InitArrays();
+}
+
+CurveC::CurveC()
+{
+	Generate(10240);
+	InitArrays();
+}
+
+void CurveC::Generate(int c)
+{
+	glm::vec3 v;
+	GLuint circle_cnt = 7;
+	GLfloat r = 5.f; 
+	GLfloat z_inc = 0.0005f;
+	GLfloat x = 0.f, y = 0.f, z = -2.f, angle = 0.f;
+
+	vertexCount = c;
+	GLfloat delta = 2.0f * M_PI * circle_cnt / vertexCount;
+
+	GLuint n = 0; //vertex number
+
+	for (angle = 0; angle <= 2.0f * M_PI * circle_cnt; angle += delta)
+	{
+		x = r * sin(angle);
+		y = r * cos(angle);
+		z += z_inc;
+
+		v = glm::vec3(x, y, z);
+		AddVertex(&vertex, &v); //add the vertex
+		glm::normalize(v);     //normalize it 
+		AddVertex(&normal, &v); //and add the normal vector
+		n++;
+	}
+	cout << "Count of vertex: " << n << "\n";
+
+	vertexCopy = vertex;
+}
+
+void CurveC::Render()
+{
+	glBindVertexArray(vaID);
+	//material properties
+	glUniform3fv(kaParameter, 1, glm::value_ptr(ka));
+	glUniform3fv(kdParameter, 1, glm::value_ptr(kd));
+	glUniform3fv(ksParameter, 1, glm::value_ptr(ks));
+	glUniform1fv(shParameter, 1, &sh);
+	//model matrix
+	glUniformMatrix4fv(modelParameter, 1, GL_FALSE, glm::value_ptr(model));
+	//model for normals
+	glUniformMatrix3fv(modelViewNParameter, 1, GL_FALSE, glm::value_ptr(modelViewN));
+	glDrawArrays(GL_LINE_STRIP, 0, points / 3);
+}
+
+glm::vec3 CurveC::GetVetex(int index)
+{
+	if (index > vertexCount - 1)
+		index = 0;
+	if (index < 0 )
+		index = vertexCount - 1;
+
+	glm::vec3 v = glm::vec3(vertexCopy[index * 3], vertexCopy[index * 3 + 1], vertexCopy[index * 3 + 2]);
+	return v;
+}
+
+
 
