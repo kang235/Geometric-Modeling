@@ -360,10 +360,7 @@ void CurveC::Generate(int c)
 	{
 		x = r* sin(angle) * cos(angle);
 		y = r * cos(angle);
-
-		//x = sin(angle)* cos(angle);
-		//y = r * cos(angle);
-		////z += z_inc;
+		z += z_inc;
 
 		v = glm::vec3(x, y, z);
 		AddVertex(&vertex, &v); //add the vertex

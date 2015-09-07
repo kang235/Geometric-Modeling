@@ -30,6 +30,7 @@ bbenes ~ at ~ purdue.edu       */
 #include "shapes.h"    
 #include "lights.h"   
 #include "osculating.h"
+#include "util.h"
 
 #pragma warning(disable : 4996)
 #pragma comment(lib, "glew32.lib")
@@ -42,12 +43,13 @@ bool needRedisplay = false;
 ShapesC* sphere;
 ShapesC* circle;
 CurveC* curve;
-GLuint pointsCount = 10240;
-GLuint selectPointIdx = 5000;
-GLuint selectPointInc = 1;
-glm::vec3 selectPointPos;
+GLuint pointsCount = 10240; //discrete points on the curve
+GLuint selectedPointIdx = 5000; //select the 5000th point by default
+GLuint selectedPointInc = 1;  //for debug use, change the stride
+glm::vec3 selectedPointPos;
 GLuint oscPointCount = 3;
-std::vector<glm::vec3> *container;
+std::vector<glm::vec3> *container = new std::vector<glm::vec3>(); //store neighbor points for calc osculating circle
+OsculatingCircleInfo *c;
 
 //shader program ID
 GLuint shaderProgram;
@@ -96,39 +98,45 @@ void Reshape(int w, int h)
 
 void Arm(glm::mat4 m)
 {
-	container = new std::vector<glm::vec3>();
-	for (GLuint i = selectPointIdx - (oscPointCount - 1) / 2; i < selectPointIdx; ++i)
+	container->clear();
+
+	//put neighboring points that are used to detect the curvature into container
+	for (GLuint i = selectedPointIdx - (oscPointCount - 1) / 2; i < selectedPointIdx; ++i)
 	{
 		container->push_back(curve->GetVetex(i));
 	}
-	container->push_back(curve->GetVetex(selectPointIdx));
-	for (GLuint i = selectPointIdx + (oscPointCount - 1) / 2; i > selectPointIdx; --i)
+	container->push_back(curve->GetVetex(selectedPointIdx));
+	for (GLuint i = selectedPointIdx + (oscPointCount - 1) / 2; i > selectedPointIdx; --i)
 	{
 		container->push_back(curve->GetVetex(i));
 	}
-	OsculatingCircleInfo *c = new OsculatingCircleInfo(*container);
+	
+	c = new OsculatingCircleInfo(*container);
 
 	glm::vec3 pa, pb, pc;
-	if (selectPointIdx > 2 && selectPointIdx < pointsCount - 1) {
-		pa = curve->GetVetex(selectPointIdx - 1);
-		pb = curve->GetVetex(selectPointIdx);
-		pc = curve->GetVetex(selectPointIdx + 1);
+	if (selectedPointIdx > 2 && selectedPointIdx < pointsCount - 1) {
+		pa = curve->GetVetex(selectedPointIdx - 1);
+		pb = curve->GetVetex(selectedPointIdx);
+		pc = curve->GetVetex(selectedPointIdx + 1);
 	}
 	glm::vec3 vab = pb - pa;
 	glm::vec3 vac = pc - pa;
 	glm::vec3 vbc = pc - pb;
 
 	glm::vec3 vn = glm::normalize(glm::cross(vab, vac));
-
-	float angelX = glm::angle(vn, vec3(1, 0, 0));
-	float angelY = glm::angle(vn, vec3(0, 1, 0));
-	float angelZ = glm::angle(vn, vec3(0, 0, 1));
+	//get the rotation matrix with two vectors
+	glm::mat3x3 rMat3 = Util::GetRotationMatrixWith2Vectors(vn, glm::vec3(0, 1, 0));
+	//homogeneous
+	glm::mat4x4 rMat4 = glm::mat4x4(
+		glm::vec4(rMat3[0], 0),
+		glm::vec4(rMat3[1], 0),
+		glm::vec4(rMat3[2], 0),
+		glm::vec4(0, 0, 0, 1)
+		);
 
 	glm::mat4 mc = m;
 	mc = glm::translate(mc, c->pcenter);
-	mc = glm::rotate(mc, angelX, glm::vec3(1.0, 0.0, 0.0));
-	mc = glm::rotate(mc, angelY, glm::vec3(0.0, 1.0, 0.0));
-	mc = glm::rotate(mc, angelZ, glm::vec3(0.0, 0.0, 1.0));
+	mc = mc * rMat4;
 	mc = glm::scale(mc, glm::vec3(c->radius, c->radius, c->radius));
 	circle->SetModel(mc);
 	//now the normals
@@ -143,11 +151,12 @@ void Arm(glm::mat4 m)
 	curve->SetModelViewN(modelViewN);
 	curve->Render();
 
-	m = glm::translate(m, glm::vec3(selectPointPos.x, selectPointPos.y, selectPointPos.z));
-	m = glm::scale(m, glm::vec3(0.08f, 0.08f, 0.08f));
-	sphere->SetModel(m);
+	glm::mat4 ms = m;
+	ms = glm::translate(ms, glm::vec3(selectedPointPos.x, selectedPointPos.y, selectedPointPos.z));
+	ms = glm::scale(ms, glm::vec3(0.08f, 0.08f, 0.08f));
+	sphere->SetModel(ms);
 	//now the normals
-	modelViewN = glm::mat3(view*m);
+	modelViewN = glm::mat3(view*ms);
 	modelViewN = glm::transpose(glm::inverse(modelViewN));
 	sphere->SetModelViewN(modelViewN);
 	sphere->Render();
@@ -162,7 +171,7 @@ void RenderObjects()
 	glLineWidth(1);
 	//set the projection and view once for the scene
 	glUniformMatrix4fv(params.projParameter, 1, GL_FALSE, glm::value_ptr(proj));
-	view = glm::lookAt(glm::vec3(10.f, 10.f, 10.f),//eye
+	view = glm::lookAt(glm::vec3(10.f, 10.f, -10.f),//eye
 		glm::vec3(0, 0, 0),  //destination
 		glm::vec3(0, 1, 0)); //up
 	//view = glm::lookAt(glm::vec3(25 * sin(ftime / 180.f), 0.f, 25 * cos(ftime / 180.f)),//eye
@@ -205,23 +214,23 @@ void Kbd(unsigned char a, int x, int y)
 	case '=':
 	case '+':
 	{
-		if (selectPointIdx >= pointsCount - 1)
-			selectPointIdx = 0;
+		if (selectedPointIdx >= pointsCount - 1)
+			selectedPointIdx = 0;
 		else
-			selectPointIdx += selectPointInc;
-		selectPointPos = curve->GetVetex(selectPointIdx);
-		cout << "Selected point index: " << selectPointIdx << endl;
+			selectedPointIdx += selectedPointInc;
+		selectedPointPos = curve->GetVetex(selectedPointIdx);
+		cout << "Selected point index: " << selectedPointIdx << endl;
 		break;
 	}
 	case '-':
 	case '_':
 	{
-		if (selectPointIdx <= 0)
-			selectPointIdx = pointsCount - 1;
+		if (selectedPointIdx <= 0)
+			selectedPointIdx = pointsCount - 1;
 		else
-			selectPointIdx -= selectPointInc;
-		selectPointPos = curve->GetVetex(selectPointIdx);
-		cout << "Selected point index: " << selectPointIdx << endl;
+			selectedPointIdx -= selectedPointInc;
+		selectedPointPos = curve->GetVetex(selectedPointIdx);
+		cout << "Selected point index: " << selectedPointIdx << endl;
 		break;
 	}
 	case '.':
@@ -360,8 +369,8 @@ void InitShapes(ShaderParamsC *params)
 	circle->SetShToShader(params->shParameter);
 
 	curve = new CurveC(pointsCount);
-	selectPointPos = curve->GetVetex(selectPointIdx);
-	cout << "Selected point index: " << selectPointIdx << endl;
+	selectedPointPos = curve->GetVetex(selectedPointIdx);
+	cout << "Selected point index: " << selectedPointIdx << endl;
 	curve->SetKa(glm::vec3(1.f, 0.f, 0.f));
 	curve->SetSh(200);
 	curve->SetModel(glm::mat4(1.0));
