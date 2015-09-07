@@ -352,7 +352,7 @@ void CurveC::Generate(int c)
 	GLfloat x = 0.f, y = 0.f, z = -2.f, angle = 0.f;
 
 	vertexCount = c;
-	GLfloat delta = 2.0f * M_PI * circle_cnt / vertexCount;
+	GLfloat delta = 2.0f * (GLfloat)M_PI * circle_cnt / vertexCount;
 
 	GLuint n = 0; //vertex number
 

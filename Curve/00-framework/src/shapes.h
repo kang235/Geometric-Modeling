@@ -112,7 +112,7 @@ public:
 	glm::vec3 GetVetex(int index);
 private:
 	vector <GLfloat> vertexCopy;
-	GLuint vertexCount;
+	int vertexCount;
 	void InitArrays();
 	void Generate(int steps);
 };
