@@ -1,7 +1,7 @@
 /**********************************/
 /* Framework for CGT 581-G Geometric Modeling
-   (C) Bedrich Benes 2014
-   bbenes ~ at ~ purdue.edu       */
+(C) Bedrich Benes 2014
+bbenes ~ at ~ purdue.edu       */
 /**********************************/
 
 #include <algorithm>
@@ -25,9 +25,11 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/half_float.hpp>
+#include <glm/gtx/vector_angle.hpp>
 #include "shaders.h"    
 #include "shapes.h"    
-#include "lights.h"    
+#include "lights.h"   
+#include "osculating.h"
 
 #pragma warning(disable : 4996)
 #pragma comment(lib, "glew32.lib")
@@ -41,9 +43,11 @@ ShapesC* sphere;
 ShapesC* circle;
 CurveC* curve;
 GLuint pointsCount = 10240;
-GLuint selectPointIdx = 0;
+GLuint selectPointIdx = 5000;
 GLuint selectPointInc = 1;
 glm::vec3 selectPointPos;
+GLuint oscPointCount = 3;
+std::vector<glm::vec3> *container;
 
 //shader program ID
 GLuint shaderProgram;
@@ -92,27 +96,49 @@ void Reshape(int w, int h)
 
 void Arm(glm::mat4 m)
 {
-	//let's use instancing
-	//m=glm::translate(m,glm::vec3(0,0.5,0.0));
-	//m=glm::scale(m,glm::vec3(1.0f,1.0f,1.0f));
-	//circle->SetModel(m);
-	////now the normals
-	//glm::mat3 modelViewN=glm::mat3(view*m);
-	//modelViewN= glm::transpose(glm::inverse(modelViewN));
-	//circle->SetModelViewN(modelViewN);
-	//circle->Render();
+	container = new std::vector<glm::vec3>();
+	for (GLuint i = selectPointIdx - (oscPointCount - 1) / 2; i < selectPointIdx; ++i)
+	{
+		container->push_back(curve->GetVetex(i));
+	}
+	container->push_back(curve->GetVetex(selectPointIdx));
+	for (GLuint i = selectPointIdx + (oscPointCount - 1) / 2; i > selectPointIdx; --i)
+	{
+		container->push_back(curve->GetVetex(i));
+	}
+	OsculatingCircleInfo *c = new OsculatingCircleInfo(*container);
 
-	//m=glm::translate(m,glm::vec3(0.0,0.5,0.0));
-	//m=glm::rotate(m,-20.0f*ftime,glm::vec3(0.0,0.0,1.0));
-	//m=glm::translate(m,glm::vec3(0.0,1.5,0.0));
-	//circle->SetModel(glm::scale(m,glm::vec3(0.5f,1.0f,0.5f)));
-	//modelViewN=glm::mat3(view*m);
-	//modelViewN= glm::transpose(glm::inverse(modelViewN));
-	//circle->SetModelViewN(modelViewN);
-	//circle->Render();
+	glm::vec3 pa, pb, pc;
+	if (selectPointIdx > 2 && selectPointIdx < pointsCount - 1) {
+		pa = curve->GetVetex(selectPointIdx - 1);
+		pb = curve->GetVetex(selectPointIdx);
+		pc = curve->GetVetex(selectPointIdx + 1);
+	}
+	glm::vec3 vab = pb - pa;
+	glm::vec3 vac = pc - pa;
+	glm::vec3 vbc = pc - pb;
+
+	glm::vec3 vn = glm::normalize(glm::cross(vab, vac));
+
+	float angelX = glm::angle(vn, vec3(1, 0, 0));
+	float angelY = glm::angle(vn, vec3(0, 1, 0));
+	float angelZ = glm::angle(vn, vec3(0, 0, 1));
+
+	glm::mat4 mc = m;
+	mc = glm::translate(mc, c->pcenter);
+	mc = glm::rotate(mc, angelX, glm::vec3(1.0, 0.0, 0.0));
+	mc = glm::rotate(mc, angelY, glm::vec3(0.0, 1.0, 0.0));
+	mc = glm::rotate(mc, angelZ, glm::vec3(0.0, 0.0, 1.0));
+	mc = glm::scale(mc, glm::vec3(c->radius, c->radius, c->radius));
+	circle->SetModel(mc);
+	//now the normals
+	glm::mat3 modelViewN = glm::mat3(view*mc);
+	modelViewN = glm::transpose(glm::inverse(modelViewN));
+	circle->SetModelViewN(modelViewN);
+	circle->Render();
 
 	curve->SetModel(m);
-	glm::mat3 modelViewN = glm::mat3(view*m);
+	modelViewN = glm::mat3(view*m);
 	modelViewN = glm::transpose(glm::inverse(modelViewN));
 	curve->SetModelViewN(modelViewN);
 	curve->Render();
@@ -130,7 +156,6 @@ void Arm(glm::mat4 m)
 //the main rendering function
 void RenderObjects()
 {
-	//const int range=3;
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glColor3f(1, 1, 1);
 	glPointSize(2);
@@ -151,14 +176,6 @@ void RenderObjects()
 	pos.x = 0; pos.y = 0; pos.z = -0; pos.w = 1;
 	light.SetPos(pos);
 	light.SetShaders();
-	/*for (int i=-range;i<range;i++)
-	{
-	for (int j=-range;j<range;j++)
-	{
-	glm::mat4 m=glm::translate(glm::mat4(1.0),glm::vec3(4*i,0,4*j));
-	Arm(m);
-	}
-	}*/
 
 	glm::mat4 m = glm::mat4(1.0);
 	Arm(m);
@@ -187,26 +204,41 @@ void Kbd(unsigned char a, int x, int y)
 	case 27: exit(0); break;
 	case '=':
 	case '+':
-		{
-			if (selectPointIdx >= pointsCount - 1)
-				selectPointIdx = 0;
-			else
-				selectPointIdx += selectPointInc;
-			selectPointPos = curve->GetVetex(selectPointIdx);
-			cout << "Selected point index: " << selectPointIdx << endl;
-			break;
-		}
+	{
+		if (selectPointIdx >= pointsCount - 1)
+			selectPointIdx = 0;
+		else
+			selectPointIdx += selectPointInc;
+		selectPointPos = curve->GetVetex(selectPointIdx);
+		cout << "Selected point index: " << selectPointIdx << endl;
+		break;
+	}
 	case '-':
 	case '_':
-		{
-			if (selectPointIdx <= 0)
-				selectPointIdx = pointsCount - 1;
-			else
-				selectPointIdx -= selectPointInc;
-			selectPointPos = curve->GetVetex(selectPointIdx);
-			cout << "Selected point index: " << selectPointIdx << endl;
-			break;
-		}
+	{
+		if (selectPointIdx <= 0)
+			selectPointIdx = pointsCount - 1;
+		else
+			selectPointIdx -= selectPointInc;
+		selectPointPos = curve->GetVetex(selectPointIdx);
+		cout << "Selected point index: " << selectPointIdx << endl;
+		break;
+	}
+	case '.':
+	case '>':
+	{
+		oscPointCount += 2;
+		cout << "Points Number for Osculating: " << oscPointCount << endl;
+		break;
+	}
+	case ',':
+	case '<':
+	{
+		if (oscPointCount > 3)
+			oscPointCount -= 2;
+		cout << "Points Number for Osculating: " << oscPointCount << endl;
+		break;
+	}
 	}
 	//cout << "keyboard triggered" << endl;
 	glutPostRedisplay();
@@ -316,7 +348,7 @@ void InitShapes(ShaderParamsC *params)
 	sphere->SetKsToShader(params->ksParameter);
 	sphere->SetShToShader(params->shParameter);
 
-	circle = new CircleC(50);
+	circle = new CircleC(500);
 	circle->SetKa(glm::vec3(0.f, 0.f, 1.f));
 	circle->SetSh(200);
 	circle->SetModel(glm::mat4(1.0));

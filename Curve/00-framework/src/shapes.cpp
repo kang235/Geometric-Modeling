@@ -358,9 +358,12 @@ void CurveC::Generate(int c)
 
 	for (angle = 0; angle <= 2.0f * M_PI * circle_cnt; angle += delta)
 	{
-		x = r * sin(angle);
+		x = r* sin(angle) * cos(angle);
 		y = r * cos(angle);
-		z += z_inc;
+
+		//x = sin(angle)* cos(angle);
+		//y = r * cos(angle);
+		////z += z_inc;
 
 		v = glm::vec3(x, y, z);
 		AddVertex(&vertex, &v); //add the vertex

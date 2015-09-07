@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClCompile Include="src\lights.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\osculating.cpp" />
     <ClCompile Include="src\shaders.cpp" />
     <ClCompile Include="src\shapes.cpp" />
   </ItemGroup>
