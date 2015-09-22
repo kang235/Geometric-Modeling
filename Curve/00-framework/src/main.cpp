@@ -388,7 +388,7 @@ int main(int argc, char **argv)
 	glutInit(&argc, argv);
 	glutInitWindowSize(wWindow, hWindow);
 	glutInitWindowPosition(500, 100);
-	glutCreateWindow("Model View Projection GLSL");
+	glutCreateWindow("Curves and Osculating Circle");
 	GLenum err = glewInit();
 	if (GLEW_OK != err){
 		fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
