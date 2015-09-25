@@ -22,6 +22,7 @@ vec4 Lighting(vec3 n, vec4 pos, LightS light, MaterialS mat)
   vec3 l=normalize(vec3(light.lPos-pos));
   vec3 v=normalize(-pos.xyz); //camera is at [0,0,0] so the direction to the viewing vector is this
   vec3 r=reflect(-l, n);
+  vec3 ambient=light.la*mat.ka;
   float sDot=max(dot(l,n),0.0);
   vec3 diffuse=light.ld*mat.kd*sDot;
   vec3 specular=vec3(0.0);
@@ -29,7 +30,8 @@ vec4 Lighting(vec3 n, vec4 pos, LightS light, MaterialS mat)
   {
     specular=light.ls*mat.ks*pow(max(dot(r,v),0.0),mat.sh);
   }
-  return vec4(diffuse+specular,1);
+  return vec4(ambient + diffuse + specular,1);
+  //return  vec4(ambient,ambient, ambient);
 }
 
 
