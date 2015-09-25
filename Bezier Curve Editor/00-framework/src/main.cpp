@@ -27,7 +27,8 @@
 #include <glm/gtc/half_float.hpp>
 #include "shaders.h"    
 #include "shapes.h"    
-#include "lights.h"    
+#include "lights.h"  
+#include "bezier.h"
 
 #pragma warning(disable : 4996)
 #pragma comment(lib, "glew32.lib")

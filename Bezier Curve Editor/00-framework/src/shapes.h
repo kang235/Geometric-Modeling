@@ -102,18 +102,4 @@ private:
 	void Generate(int steps);
 };
 
-//derived class from ShapesC
-class BezierCurveC : public ShapesC
-{
-public:
-	BezierCurveC();
-	BezierCurveC(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p3, int n);
-	virtual void Render();
-private:
-	int vertexCount;
-	void InitArrays();
-	void Generate(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p3, int n);
-	glm::vec2 GetBezierCurvePoint(float t, glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p3);
-};
-
 #endif

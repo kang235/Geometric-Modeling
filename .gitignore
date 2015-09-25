@@ -1,3 +1,5 @@
 Debug
 *.sdf
 *.vcxproj
+*.suo
+/3D Curve and Osculating Circle/00-framework/.vs
