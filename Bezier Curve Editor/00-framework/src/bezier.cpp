@@ -23,44 +23,67 @@ inline void AddVertex(vector <GLfloat> *a, const glm::vec2 *v)
 	a->push_back(v->y);
 }
 
-//Bezier Curve
-void BezierCurveC::InitArrays()
-{
-	points = vertex.size();
-	normals = normal.size();
+BezierCurveControlPointsC::BezierCurveControlPointsC(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p3) {
+	this->p0 = p0;
+	this->p1 = p1;
+	this->p2 = p2;
+	this->p3 = p3;
+}
+BezierCurveControlPointsC::BezierCurveControlPointsC(vector<glm::vec2> *points) {
+	vector<glm::vec2> &p = *points;
 
-	//get the vertex array handle and bind it
-	glGenVertexArrays(1, &vaID);
-	glBindVertexArray(vaID);
-
-	//the vertex array will have two vbos, vertices and normals
-	glGenBuffers(2, vboHandles);
-	GLuint verticesID = vboHandles[0];
-	GLuint normalsID = vboHandles[1];
-
-	//send vertices
-	glBindBuffer(GL_ARRAY_BUFFER, verticesID);
-	glBufferData(GL_ARRAY_BUFFER, points*sizeof(GLfloat), &vertex[0], GL_STATIC_DRAW);
-	glVertexAttribPointer((GLuint)0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(0);
-	vertex.clear(); //no need for the vertex data, it is on the GPU now
-
-					//send normals
-	glBindBuffer(GL_ARRAY_BUFFER, normalsID);
-	glBufferData(GL_ARRAY_BUFFER, normals*sizeof(GLfloat), &normal[0], GL_STATIC_DRAW);
-	glVertexAttribPointer((GLuint)1, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(1);
-	normal.clear(); //no need for the normal data, it is on the GPU now
+	this->p0 = p[0];
+	this->p1 = p[1];
+	this->p2 = p[2];
+	this->p3 = p[3];
 }
 
+glm::vec2 BezierCurveControlPointsC::GetP0() {
+	return p0;
+}
+
+void BezierCurveControlPointsC::SetP0(glm::vec2 p) {
+	p0 = p;
+}
+
+glm::vec2 BezierCurveControlPointsC::GetP1() {
+	return p1;
+}
+
+void BezierCurveControlPointsC::SetP1(glm::vec2 p) {
+	p1 = p;
+}
+
+glm::vec2 BezierCurveControlPointsC::GetP2() {
+	return p2;
+}
+
+void BezierCurveControlPointsC::SetP2(glm::vec2 p) {
+	p2 = p;
+}
+
+glm::vec2 BezierCurveControlPointsC::GetP3() {
+	return p3;
+}
+
+void BezierCurveControlPointsC::SetP3(glm::vec2 p) {
+	p3 = p;
+}
+
+//normal Bezier
 BezierCurveC::BezierCurveC(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p3, int n)
 {
+	controlPts = new BezierCurveControlPointsC(p0, p1, p2, p3);
+
 	Generate(p0, p1, p2, p3, n);
 	InitArrays();
 }
 
+//with De Casteljau Algrithom
 BezierCurveC::BezierCurveC(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p3)
 {
+	controlPts = new BezierCurveControlPointsC(p0, p1, p2, p3);
+
 	vector<glm::vec2> *points = new vector<glm::vec2>();
 	points->push_back(p0);
 	points->push_back(p1);
@@ -71,6 +94,16 @@ BezierCurveC::BezierCurveC(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p
 	InitArrays();
 }
 
+//with De Casteljau Algrithom
+BezierCurveC::BezierCurveC(vector<glm::vec2> *points)
+{
+	controlPts = new BezierCurveControlPointsC(points);
+
+	DeCasteljau(points);
+	InitArrays();
+}
+
+//default constructor
 BezierCurveC::BezierCurveC()
 {
 	vector<glm::vec2> *points = new vector<glm::vec2>();
@@ -78,6 +111,8 @@ BezierCurveC::BezierCurveC()
 	points->push_back(glm::vec2(-5, 5));
 	points->push_back(glm::vec2(5, -5));
 	points->push_back(glm::vec2(10, 0));
+
+	controlPts = new BezierCurveControlPointsC(points);
 
 	DeCasteljau(points);
 
@@ -160,6 +195,46 @@ void BezierCurveC::SplitCurve(vector<glm::vec2> *points, vector<glm::vec2> *left
 	rr[2] = (pr[2] + pr[3]) / 2.0f;
 	rr[1] = (rr[2] + hlp) / 2.0f;
 	lr[3] = rr[0] = (lr[2] + rr[1]) / 2.0f;
+}
+
+BezierCurveControlPointsC* BezierCurveC::GetControlPoints()
+{
+	return controlPts;
+}
+
+void BezierCurveC::SetControlPoints(BezierCurveControlPointsC* p)
+{
+	controlPts = p;
+}
+
+//Bezier Curve
+void BezierCurveC::InitArrays()
+{
+	points = vertex.size();
+	normals = normal.size();
+
+	//get the vertex array handle and bind it
+	glGenVertexArrays(1, &vaID);
+	glBindVertexArray(vaID);
+
+	//the vertex array will have two vbos, vertices and normals
+	glGenBuffers(2, vboHandles);
+	GLuint verticesID = vboHandles[0];
+	GLuint normalsID = vboHandles[1];
+
+	//send vertices
+	glBindBuffer(GL_ARRAY_BUFFER, verticesID);
+	glBufferData(GL_ARRAY_BUFFER, points*sizeof(GLfloat), &vertex[0], GL_STATIC_DRAW);
+	glVertexAttribPointer((GLuint)0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+	vertex.clear(); //no need for the vertex data, it is on the GPU now
+
+					//send normals
+	glBindBuffer(GL_ARRAY_BUFFER, normalsID);
+	glBufferData(GL_ARRAY_BUFFER, normals*sizeof(GLfloat), &normal[0], GL_STATIC_DRAW);
+	glVertexAttribPointer((GLuint)1, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+	normal.clear(); //no need for the normal data, it is on the GPU now
 }
 
 void BezierCurveC::Render()

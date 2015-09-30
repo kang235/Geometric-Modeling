@@ -231,15 +231,31 @@ void CubeC::Render()
 
 void CircleC::InitArrays()
 {
+	points = vertex.size();
+	normals = normal.size();
+
+	//get the vertex array handle and bind it
 	glGenVertexArrays(1, &vaID);
 	glBindVertexArray(vaID);
-	glGenBuffers(1, &buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	points = vertex.size();
+
+	//the vertex array will have two vbos, vertices and normals
+	glGenBuffers(2, vboHandles);
+	GLuint verticesID = vboHandles[0];
+	GLuint normalsID = vboHandles[1];
+
+	//send vertices
+	glBindBuffer(GL_ARRAY_BUFFER, verticesID);
 	glBufferData(GL_ARRAY_BUFFER, points*sizeof(GLfloat), &vertex[0], GL_STATIC_DRAW);
 	glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
 	vertex.clear(); //no need for the vertex data, it is on the GPU now
+
+					//send normals
+	glBindBuffer(GL_ARRAY_BUFFER, normalsID);
+	glBufferData(GL_ARRAY_BUFFER, normals*sizeof(GLfloat), &normal[0], GL_STATIC_DRAW);
+	glVertexAttribPointer((GLuint)1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+	normal.clear(); //no need for the normal data, it is on the GPU now
 }
 
 CircleC::CircleC(int steps)
@@ -247,8 +263,6 @@ CircleC::CircleC(int steps)
 	Generate(steps);
 	InitArrays();
 }
-
-
 
 CircleC::CircleC()
 {
@@ -262,7 +276,7 @@ void CircleC::Generate(int steps)
 
 	GLfloat deltaAlpha = 2 * (GLfloat)M_PI / (GLfloat)steps;
 
-	for (GLint i = 0; i < steps; i++)
+	for (GLint i = 0; i<steps; i++)
 	{
 		GLfloat alpha = i*deltaAlpha;
 		v = glm::vec3(sin(alpha),
@@ -277,9 +291,14 @@ void CircleC::Generate(int steps)
 void CircleC::Render()
 {
 	glBindVertexArray(vaID);
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glEnableVertexAttribArray(0);
+	//material properties
+	glUniform3fv(kaParameter, 1, glm::value_ptr(ka));
+	glUniform3fv(kdParameter, 1, glm::value_ptr(kd));
+	glUniform3fv(ksParameter, 1, glm::value_ptr(ks));
+	glUniform1fv(shParameter, 1, &sh);
+	//model matrix
 	glUniformMatrix4fv(modelParameter, 1, GL_FALSE, glm::value_ptr(model));
-	glPointSize(10);
-	glDrawArrays(GL_LINE_LOOP, 0, points / 3); //Should be 1/3. Why?
+	//model for normals
+	glUniformMatrix3fv(modelViewNParameter, 1, GL_FALSE, glm::value_ptr(modelViewN));
+	glDrawArrays(GL_LINE_LOOP, 0, points / 3);
 }

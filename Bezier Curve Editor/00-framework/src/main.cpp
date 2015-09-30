@@ -41,8 +41,10 @@ using namespace glm;
 
 bool needRedisplay = false;
 //ShapesC* sphere;
-//ShapesC* circle;
-ShapesC* curve;
+CircleC* circle;
+BezierCurveC* curve;
+
+
 
 //shader program ID
 GLuint shaderProgram;
@@ -53,7 +55,7 @@ glm::mat4 proj = glm::perspective(60.0f,			//fovy
 	0.01f, 1000.f); //near, far
 GLfloat camX = .0f;
 GLfloat camY = .0f;
-GLfloat camZ = 10.0f;
+GLfloat camZ = 20.0f;
 GLfloat camStep = .1f;
 
 class ShaderParamsC
@@ -94,17 +96,28 @@ void Reshape(int w, int h)
 	hWindow = h;
 }
 
-void Arm(glm::mat4 m)
+void Curve(glm::mat4 m)
 {
 	//let's use instancing
-	m = glm::translate(m, glm::vec3(0.0, 0.0, 0.0));
-	m = glm::scale(m, glm::vec3(0.5f, 0.5f, 0.5f));
 	curve->SetModel(m);
 	//now the normals
 	glm::mat3 modelViewN = glm::mat3(view*m);
 	modelViewN = glm::transpose(glm::inverse(modelViewN));
 	curve->SetModelViewN(modelViewN);
 	curve->Render();
+}
+
+void Points(glm::mat4 m)
+{
+	//let's use instancing
+	m = glm::scale(m, glm::vec3(0.1f, 0.1f, 0.1f));
+	m = glm::rotate(m, 90.0f, glm::vec3(1, 0, 0));
+	circle->SetModel(m);
+	//now the normals
+	glm::mat3 modelViewN = glm::mat3(view*m);
+	modelViewN = glm::transpose(glm::inverse(modelViewN));
+	circle->SetModelViewN(modelViewN);
+	circle->Render();
 }
 
 //the main rendering function
@@ -117,7 +130,7 @@ void RenderObjects()
 	//			     glm::vec3(0,0,0),  //destination
 	//			     glm::vec3(0,1,0)); //up
 	view = glm::lookAt(glm::vec3(camX, camY, camZ),//eye
-		glm::vec3(camX, 0, 0),  //destination
+		glm::vec3(camX, camY, 0),  //destination
 		glm::vec3(0, 1, 0)); //up
 
 	glUniformMatrix4fv(params.viewParameter, 1, GL_FALSE, glm::value_ptr(view));
@@ -127,7 +140,19 @@ void RenderObjects()
 	light.SetPos(pos);
 	light.SetShaders();
 
-	Arm(glm::mat4(1));
+	glm::mat4 m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP0(), 0));
+	Points(m);
+
+	m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP1(), 0));
+	Points(m);
+
+	m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP2(), 0));
+	Points(m);
+
+	m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP3(), 0));
+	Points(m);
+
+	Curve(glm::mat4(1.0));
 }
 
 //render text 
@@ -139,7 +164,7 @@ void RenderText(char *text)
 	glColor3f(0.0f, 1.0f, 1.0f);
 	glWindowPos2i(20, 20);
 	for (unsigned i = 0; i < strlen(text); ++i) {
-		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, (int)text[i]);
+		glutBitmapCharacter(GLUT_BITMAP_9_BY_15, (int)text[i]);
 	}
 }
 
@@ -197,12 +222,12 @@ void SpecKbdPress(int a, int x, int y)
 	}
 	case GLUT_KEY_DOWN:
 	{
-		camZ += camStep;
+		camY -= camStep;
 		break;
 	}
 	case GLUT_KEY_UP:
 	{
-		camZ -= camStep;
+		camY += camStep;
 		break;
 	}
 
@@ -281,16 +306,24 @@ void InitializeProgram(GLuint *program)
 void InitShapes(ShaderParamsC *params)
 {
 	//create curve
-	curve = new BezierCurveC();
+	curve = new BezierCurveC(glm::vec2(-10, 0), glm::vec2(-5, 5), glm::vec2(5, -5), glm::vec2(10, 0));
 	curve->SetKa(glm::vec3(0.0, 1.0, 0.0));
 	curve->SetSh(200);
 	curve->SetModel(glm::mat4(1.0));
 	curve->SetModelMatrixParamToShader(params->modelParameter);
 	curve->SetModelViewNMatrixParamToShader(params->modelViewNParameter);
 	curve->SetKaToShader(params->kaParameter);
-	curve->SetKdToShader(params->kdParameter);
-	curve->SetKsToShader(params->ksParameter);
 	curve->SetShToShader(params->shParameter);
+
+	//create circle for indicating the control points of Bezier Curve
+	circle = new CircleC(32);
+	circle->SetKa(glm::vec3(0.0, 0.0, 1.0));
+	circle->SetSh(200);
+	circle->SetModel(glm::mat4(1.0));
+	circle->SetModelMatrixParamToShader(params->modelParameter);
+	circle->SetModelViewNMatrixParamToShader(params->modelViewNParameter);
+	circle->SetKaToShader(params->kaParameter);
+	circle->SetShToShader(params->shParameter);
 }
 
 int main(int argc, char **argv)
