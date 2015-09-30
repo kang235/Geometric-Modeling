@@ -34,6 +34,8 @@
 #pragma comment(lib, "glew32.lib")
 #pragma comment(lib, "freeglut.lib")
 
+#define PROMPT "Press arrow keys to adjust camera;"
+
 using namespace std;
 using namespace glm;
 
@@ -49,6 +51,11 @@ glm::mat4 view = glm::mat4(1.0);					//viewing matrix is identity
 glm::mat4 proj = glm::perspective(60.0f,			//fovy
 	1.0f,			//aspect
 	0.01f, 1000.f); //near, far
+GLfloat camX = .0f;
+GLfloat camY = .0f;
+GLfloat camZ = 10.0f;
+GLfloat camStep = .1f;
+
 class ShaderParamsC
 {
 public:
@@ -100,20 +107,17 @@ void Arm(glm::mat4 m)
 	curve->Render();
 }
 
-
-
 //the main rendering function
 void RenderObjects()
 {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	glColor3f(0, 0, 0);
 	//set the projection and view once for the scene
 	glUniformMatrix4fv(params.projParameter, 1, GL_FALSE, glm::value_ptr(proj));
 	//view=glm::lookAt(glm::vec3(25*sin(ftime/40.f),5.f,15*cos(ftime/40.f)),//eye
 	//			     glm::vec3(0,0,0),  //destination
 	//			     glm::vec3(0,1,0)); //up
-	view = glm::lookAt(glm::vec3(0.0f, 0.0f, 10.f),//eye
-		glm::vec3(0, 0, 0),  //destination
+	view = glm::lookAt(glm::vec3(camX, camY, camZ),//eye
+		glm::vec3(camX, 0, 0),  //destination
 		glm::vec3(0, 1, 0)); //up
 
 	glUniformMatrix4fv(params.viewParameter, 1, GL_FALSE, glm::value_ptr(view));
@@ -126,6 +130,19 @@ void RenderObjects()
 	Arm(glm::mat4(1));
 }
 
+//render text 
+void RenderText(char *text)
+{
+	//use fixed pipeline
+	glUseProgramObjectARB(0);
+
+	glColor3f(0.0f, 1.0f, 1.0f);
+	glWindowPos2i(20, 20);
+	for (unsigned i = 0; i < strlen(text); ++i) {
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, (int)text[i]);
+	}
+}
+
 void Idle(void)
 {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -133,12 +150,12 @@ void Idle(void)
 	ftime += 0.15f;
 	glUseProgram(shaderProgram);
 	RenderObjects();
+	RenderText(PROMPT);
 	glutSwapBuffers();
 }
 
 void Display(void)
 {
-
 }
 
 //keyboard callback
@@ -170,18 +187,22 @@ void SpecKbdPress(int a, int x, int y)
 	{
 	case GLUT_KEY_LEFT:
 	{
+		camX -= camStep;
 		break;
 	}
 	case GLUT_KEY_RIGHT:
 	{
+		camX += camStep;
 		break;
 	}
 	case GLUT_KEY_DOWN:
 	{
+		camZ += camStep;
 		break;
 	}
 	case GLUT_KEY_UP:
 	{
+		camZ -= camStep;
 		break;
 	}
 
@@ -196,18 +217,22 @@ void SpecKbdRelease(int a, int x, int y)
 	{
 	case GLUT_KEY_LEFT:
 	{
+		//cout << "Left arrow pressed." << endl;
 		break;
 	}
 	case GLUT_KEY_RIGHT:
 	{
+		//cout << "Right arrow pressed." << endl;
 		break;
 	}
 	case GLUT_KEY_DOWN:
 	{
+		//cout << "Down arrow pressed." << endl;
 		break;
 	}
 	case GLUT_KEY_UP:
 	{
+		//cout << "Up arrow pressed." << endl;
 		break;
 	}
 	}
