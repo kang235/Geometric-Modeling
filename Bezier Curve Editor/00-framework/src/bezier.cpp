@@ -163,7 +163,7 @@ void BezierCurveC::DeCasteljau(vector<glm::vec2> *points)
 	right = new vector<glm::vec2>(4);
 
 	float d = glm::distance(ref[0], ref[3]);
-	if (glm::distance(ref[0], ref[3]) < 0.5) {
+	if (glm::distance(ref[0], ref[3]) < 0.01) {
 		AddVertex(&vertex, &ref[0]); //add the vertex
 		glm::normalize(ref[0]);      //normalize it 
 		AddVertex(&normal, &ref[0]); //and add the normal vector

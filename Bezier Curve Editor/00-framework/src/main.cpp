@@ -34,7 +34,8 @@
 #pragma comment(lib, "glew32.lib")
 #pragma comment(lib, "freeglut.lib")
 
-#define PROMPT "Press arrow keys to adjust camera;"
+#define PROMPT0 "Press arrow keys to adjust camera; Press CTRL+Z to undo the changes for points;"
+#define PROMPT1 "Press SHIFT to add a C1 continuity new point; Press ALT to enforce next point to be G1 continuity."
 
 using namespace std;
 using namespace glm;
@@ -42,8 +43,10 @@ using namespace glm;
 bool needRedisplay = false;
 //ShapesC* sphere;
 CircleC* circle;
-BezierCurveC* curve;
+//BezierCurveC* curve;
 vector<glm::vec2>* points = new vector<glm::vec2>();
+vector<BezierCurveC*>* curves = new vector<BezierCurveC*>();
+bool g1triggered = false;
 
 //shader program ID
 GLuint shaderProgram;
@@ -97,15 +100,14 @@ void Reshape(int w, int h)
 	hWindow = h;
 }
 
-void Curve(glm::mat4 m)
+void Arm(BezierCurveC *c, glm::mat4 m)
 {
-	//let's use instancing
-	curve->SetModel(m);
+	c->SetModel(m);
 	//now the normals
 	glm::mat3 modelViewN = glm::mat3(view*m);
 	modelViewN = glm::transpose(glm::inverse(modelViewN));
-	curve->SetModelViewN(modelViewN);
-	curve->Render();
+	c->SetModelViewN(modelViewN);
+	c->Render();
 }
 
 void Points(glm::mat4 m)
@@ -141,18 +143,6 @@ void RenderObjects()
 	light.SetPos(pos);
 	light.SetShaders();
 
-	/*glm::mat4 m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP0(), 0));
-	Points(m);
-
-	m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP1(), 0));
-	Points(m);
-
-	m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP2(), 0));
-	Points(m);
-
-	m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP3(), 0));
-	Points(m);*/
-
 	vector<glm::vec2> &p = *points;
 
 	for (vector<glm::vec2>::iterator i = p.begin(); i != p.end(); ++i) {
@@ -160,19 +150,21 @@ void RenderObjects()
 		Points(m);
 	}
 
-	Curve(glm::mat4(1.0));
+	for (vector<BezierCurveC *>::iterator i = curves->begin(); i != curves->end(); ++i) {
+		Arm(*i, glm::mat4(1.0));
+	}
 }
 
 //render text 
-void RenderText(char *text)
+void RenderText(char *text, glm::vec2 pos)
 {
 	//use fixed pipeline
 	glUseProgramObjectARB(0);
 
 	glColor3f(0.0f, 1.0f, 1.0f);
-	glWindowPos2i(20, 20);
+	glWindowPos2i((GLint)pos.x, (GLint)pos.y);
 	for (unsigned i = 0; i < strlen(text); ++i) {
-		glutBitmapCharacter(GLUT_BITMAP_9_BY_15, (int)text[i]);
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, (int)text[i]);
 	}
 }
 
@@ -183,7 +175,8 @@ void Idle(void)
 	ftime += 0.15f;
 	glUseProgram(shaderProgram);
 	RenderObjects();
-	RenderText(PROMPT);
+	RenderText(PROMPT0, glm::vec2(20, 40));
+	RenderText(PROMPT1, glm::vec2(20, 20));
 	glutSwapBuffers();
 }
 
@@ -196,19 +189,29 @@ void Kbd(unsigned char a, int x, int y)
 {
 	switch (a)
 	{
-	case 27: exit(0); break;
-	case 'r':
-	case 'R': {curve->SetKd(glm::vec3(1, 0, 0)); break; }
-	case 'g':
-	case 'G': {curve->SetKd(glm::vec3(0, 1, 0)); break; }
-	case 'b':
-	case 'B': {curve->SetKd(glm::vec3(0, 0, 1)); break; }
-	case 'w':
-	case 'W': {curve->SetKd(glm::vec3(0.7, 0.7, 0.7)); break; }
-	case '+': {camZ += camStep; break; }
-	case '-': {camZ -= camStep; break; }
+		case 27: {exit(0); break; }
+		case 26: 
+		{
+			cout << "Ctrl + Z pressed - Undo" << endl; 
+
+			//count points remaining that can not form a curve
+			int n = points->size() % 4; 
+
+			if (n == 1 && points->size() > 4) { 
+				curves->pop_back();
+				//the 1st point is the 4th point of last curve, pop twice
+				points->pop_back();
+				points->pop_back();
+			}
+			else {
+				if (points->size() == 0)
+					return;
+				points->pop_back();
+			}
+			break; 
+		}
 	}
-	cout << "shineness=" << sh << endl;
+
 	glutPostRedisplay();
 }
 
@@ -216,6 +219,32 @@ void Kbd(unsigned char a, int x, int y)
 //special keyboard callback
 void SpecKbdPress(int a, int x, int y)
 {
+	int state = glutGetModifiers();
+
+	if (state == GLUT_ACTIVE_SHIFT)
+	{
+		int n = points->size();
+		if (n % 4 == 1 && n > 4)
+		{
+			glm::vec2 p;
+			p.x = 2 * (*points)[n - 1].x - (*points)[n - 3].x;
+			p.y = 2 * (*points)[n - 1].y - (*points)[n - 3].y;
+			points->push_back(p);
+
+			cout << "Shift pressed - enforce C1 continuity" << endl;
+		}
+	}
+	else if (state == GLUT_ACTIVE_ALT)
+	{
+	/*	int n = points->size();
+		if (n % 4 == 1 && n > 4)
+		{
+			g1triggered = true;
+			cout << "ALT pressed - enforce G1 continuity" << endl;
+		}*/
+	}
+
+
 	switch (a)
 	{
 	case GLUT_KEY_LEFT:
@@ -238,54 +267,51 @@ void SpecKbdPress(int a, int x, int y)
 		camY += camStep;
 		break;
 	}
-
 	}
 	glutPostRedisplay();
 }
-
-//called when a special key is released
-void SpecKbdRelease(int a, int x, int y)
-{
-	switch (a)
-	{
-	case GLUT_KEY_LEFT:
-	{
-		//cout << "Left arrow pressed." << endl;
-		break;
-	}
-	case GLUT_KEY_RIGHT:
-	{
-		//cout << "Right arrow pressed." << endl;
-		break;
-	}
-	case GLUT_KEY_DOWN:
-	{
-		//cout << "Down arrow pressed." << endl;
-		break;
-	}
-	case GLUT_KEY_UP:
-	{
-		//cout << "Up arrow pressed." << endl;
-		break;
-	}
-	}
-	glutPostRedisplay();
-}
-
 
 void Mouse(int button, int state, int x, int y)
 {
-	//cout << "Location is " << "[" << x << "'" << y << "]" << endl;
-	float z;
-	glm::vec3 windowView = glm::vec3(wWindow - x , y, 1);
-	glm::vec4 viewport = glm::vec4(0.0f, 0.0f, (float)wWindow, (float)hWindow);
-	glm::vec3 pos = glm::unProject(windowView, view, proj, viewport);
+	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+		//cout << "Location is " << "[" << x << "'" << y << "]" << endl;
+		glm::vec3 windowView = glm::vec3(wWindow - x, y, 1);
+		glm::vec4 viewport = glm::vec4(0.0f, 0.0f, (float)wWindow, (float)hWindow);
+		glm::vec3 pos = glm::unProject(windowView, view, proj, viewport);
 
-	//cout << "World Location is " << "[" << pos.x << "'" << pos.y << "]" << endl;
+		//cout << "World Location is " << "[" << pos.x << "'" << pos.y << "]" << endl;
 
-	points->push_back(glm::vec2(pos.x, pos.y));
+		if (g1triggered) { //if alt pressed, enforce next point to be on G1 continuity
+			g1triggered = false;
+
+			glm::vec2 p;
+			int n = points->size();
+			//float k = 1/glm::distance((*points)[n - 1], glm::vec2(pos.x, pos.y));
+			float k = 1;
+			cout << k << endl;
+			pos.x = (GLint)(((*points)[n - 1].x - (*points)[n - 3].x) / k + (*points)[n - 1].x);
+			pos.y = (GLint)(((*points)[n - 1].y - (*points)[n - 3].y) / k + (*points)[n - 1].y);
+		}
+
+		vector<glm::vec2> &p = *points;
+		p.push_back(glm::vec2(pos.x, pos.y));
+
+		int curveCount = p.size() >> 2;
+		if (curveCount != curves->size()) {  //new four points added
+			BezierCurveC *curve = new BezierCurveC(p[p.size() - 4], p[p.size() - 3], p[p.size() - 2], p[p.size() - 1]);
+			curve->SetKa(glm::vec3(0.0, 1.0, 0.0));
+			curve->SetSh(200);
+			curve->SetModel(glm::mat4(1.0));
+			curve->SetModelMatrixParamToShader(params.modelParameter);
+			curve->SetModelViewNMatrixParamToShader(params.modelViewNParameter);
+			curve->SetKaToShader(params.kaParameter);
+			curve->SetShToShader(params.shParameter);
+			curves->push_back(curve);
+
+			p.push_back(glm::vec2(pos.x, pos.y)); //end point and start point
+		}
+	}
 }
-
 
 void InitializeProgram(GLuint *program)
 {
@@ -321,18 +347,8 @@ void InitializeProgram(GLuint *program)
 
 void InitShapes(ShaderParamsC *params)
 {
-	//create curve
-	curve = new BezierCurveC(glm::vec2(-10, 0), glm::vec2(-5, 5), glm::vec2(5, -5), glm::vec2(10, 0));
-	curve->SetKa(glm::vec3(0.0, 1.0, 0.0));
-	curve->SetSh(200);
-	curve->SetModel(glm::mat4(1.0));
-	curve->SetModelMatrixParamToShader(params->modelParameter);
-	curve->SetModelViewNMatrixParamToShader(params->modelViewNParameter);
-	curve->SetKaToShader(params->kaParameter);
-	curve->SetShToShader(params->shParameter);
-
 	//create circle for indicating the control points of Bezier Curve
-	circle = new CircleC(512);
+	circle = new CircleC(16);
 	circle->SetKa(glm::vec3(0.0, 0.0, 1.0));
 	circle->SetSh(200);
 	circle->SetModel(glm::mat4(1.0));
@@ -357,8 +373,7 @@ int main(int argc, char **argv)
 	glutIdleFunc(Idle);
 	glutMouseFunc(Mouse);
 	glutReshapeFunc(Reshape);
-	glutKeyboardFunc(Kbd); //+ and -
-	glutSpecialUpFunc(SpecKbdRelease); //smooth motion
+	glutKeyboardFunc(Kbd);
 	glutSpecialFunc(SpecKbdPress);
 	InitializeProgram(&shaderProgram);
 	InitShapes(&params);
