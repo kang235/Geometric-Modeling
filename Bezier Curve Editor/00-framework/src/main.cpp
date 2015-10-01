@@ -43,20 +43,21 @@ bool needRedisplay = false;
 //ShapesC* sphere;
 CircleC* circle;
 BezierCurveC* curve;
-
-
+vector<glm::vec2>* points = new vector<glm::vec2>();
 
 //shader program ID
 GLuint shaderProgram;
 GLfloat ftime = 0.f;
-glm::mat4 view = glm::mat4(1.0);					//viewing matrix is identity
-glm::mat4 proj = glm::perspective(60.0f,			//fovy
-	1.0f,			//aspect
-	0.01f, 1000.f); //near, far
+
 GLfloat camX = .0f;
 GLfloat camY = .0f;
 GLfloat camZ = 20.0f;
 GLfloat camStep = .1f;
+
+glm::mat4 view = glm::mat4(1.0);					//viewing matrix is identity
+glm::mat4 proj = glm::perspective(60.0f,			//fovy
+	1.0f,			//aspect
+	0.01f, -camZ); //near, far
 
 class ShaderParamsC
 {
@@ -140,7 +141,7 @@ void RenderObjects()
 	light.SetPos(pos);
 	light.SetShaders();
 
-	glm::mat4 m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP0(), 0));
+	/*glm::mat4 m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP0(), 0));
 	Points(m);
 
 	m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP1(), 0));
@@ -150,7 +151,14 @@ void RenderObjects()
 	Points(m);
 
 	m = glm::translate(glm::mat4(1.0), glm::vec3(curve->GetControlPoints()->GetP3(), 0));
-	Points(m);
+	Points(m);*/
+
+	vector<glm::vec2> &p = *points;
+
+	for (vector<glm::vec2>::iterator i = p.begin(); i != p.end(); ++i) {
+		glm::mat4 m = glm::translate(glm::mat4(1.0), glm::vec3(i->x, i->y, 0));
+		Points(m);
+	}
 
 	Curve(glm::mat4(1.0));
 }
@@ -197,8 +205,8 @@ void Kbd(unsigned char a, int x, int y)
 	case 'B': {curve->SetKd(glm::vec3(0, 0, 1)); break; }
 	case 'w':
 	case 'W': {curve->SetKd(glm::vec3(0.7, 0.7, 0.7)); break; }
-	case '+': {curve->SetSh(sh += 1); break; }
-	case '-': {curve->SetSh(sh -= 1); if (sh < 1) sh = 1; break; }
+	case '+': {camZ += camStep; break; }
+	case '-': {camZ -= camStep; break; }
 	}
 	cout << "shineness=" << sh << endl;
 	glutPostRedisplay();
@@ -267,7 +275,15 @@ void SpecKbdRelease(int a, int x, int y)
 
 void Mouse(int button, int state, int x, int y)
 {
-	cout << "Location is " << "[" << x << "'" << y << "]" << endl;
+	//cout << "Location is " << "[" << x << "'" << y << "]" << endl;
+	float z;
+	glm::vec3 windowView = glm::vec3(wWindow - x , y, 1);
+	glm::vec4 viewport = glm::vec4(0.0f, 0.0f, (float)wWindow, (float)hWindow);
+	glm::vec3 pos = glm::unProject(windowView, view, proj, viewport);
+
+	//cout << "World Location is " << "[" << pos.x << "'" << pos.y << "]" << endl;
+
+	points->push_back(glm::vec2(pos.x, pos.y));
 }
 
 
@@ -316,7 +332,7 @@ void InitShapes(ShaderParamsC *params)
 	curve->SetShToShader(params->shParameter);
 
 	//create circle for indicating the control points of Bezier Curve
-	circle = new CircleC(32);
+	circle = new CircleC(512);
 	circle->SetKa(glm::vec3(0.0, 0.0, 1.0));
 	circle->SetSh(200);
 	circle->SetModel(glm::mat4(1.0));
