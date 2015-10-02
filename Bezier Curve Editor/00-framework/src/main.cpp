@@ -236,12 +236,12 @@ void SpecKbdPress(int a, int x, int y)
 	}
 	else if (state == GLUT_ACTIVE_ALT)
 	{
-	/*	int n = points->size();
+		int n = points->size();
 		if (n % 4 == 1 && n > 4)
 		{
 			g1triggered = true;
 			cout << "ALT pressed - enforce G1 continuity" << endl;
-		}*/
+		}
 	}
 
 
@@ -286,11 +286,11 @@ void Mouse(int button, int state, int x, int y)
 
 			glm::vec2 p;
 			int n = points->size();
-			//float k = 1/glm::distance((*points)[n - 1], glm::vec2(pos.x, pos.y));
-			float k = 1;
+			float k = glm::distance((*points)[n - 1], glm::vec2(pos.x, pos.y));
+			//float k = 1;
 			cout << k << endl;
-			pos.x = (GLint)(((*points)[n - 1].x - (*points)[n - 3].x) / k + (*points)[n - 1].x);
-			pos.y = (GLint)(((*points)[n - 1].y - (*points)[n - 3].y) / k + (*points)[n - 1].y);
+			pos.x = (GLfloat)(((*points)[n - 1].x - (*points)[n - 3].x) / k + (*points)[n - 1].x);
+			pos.y = (GLfloat)(((*points)[n - 1].y - (*points)[n - 3].y) / k + (*points)[n - 1].y);
 		}
 
 		vector<glm::vec2> &p = *points;

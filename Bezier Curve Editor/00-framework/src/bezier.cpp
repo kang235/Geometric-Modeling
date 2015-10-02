@@ -251,4 +251,5 @@ void BezierCurveC::Render()
 	glUniformMatrix3fv(modelViewNParameter, 1, GL_FALSE, glm::value_ptr(modelViewN));
 	glLineWidth(2);
 	glDrawArrays(GL_LINE_STRIP, 0, points / 2);
+	glLineWidth(1);
 }
