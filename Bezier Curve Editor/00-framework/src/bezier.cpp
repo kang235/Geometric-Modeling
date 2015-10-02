@@ -10,6 +10,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/ext.hpp>
 #include "shapes.h"
 #include "bezier.h"
 
@@ -130,7 +131,7 @@ void BezierCurveC::Generate(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 
 
 	for (int i = 0; i < n; ++i) {
 		p = GetBezierCurvePoint(t + deltat, p0, p1, p2, p3);
-		
+
 		AddVertex(&vertex, &p); //add the vertex
 		glm::normalize(p);      //normalize it 
 		AddVertex(&normal, &p); //and add the normal vector
@@ -154,7 +155,7 @@ glm::vec2 BezierCurveC::GetBezierCurvePoint(float t, glm::vec2 p0, glm::vec2 p1,
 	return point;
 }
 
-void BezierCurveC::DeCasteljau(vector<glm::vec2> *points) 
+void BezierCurveC::DeCasteljau(vector<glm::vec2> *points)
 {
 	vector<glm::vec2>& ref = *points;
 	vector<glm::vec2> *left, *right;
@@ -162,8 +163,7 @@ void BezierCurveC::DeCasteljau(vector<glm::vec2> *points)
 	left = new vector<glm::vec2>(4);
 	right = new vector<glm::vec2>(4);
 
-	float d = glm::distance(ref[0], ref[3]);
-	if (glm::distance(ref[0], ref[3]) < 0.01) {
+	if (SplitEndCondition(ref)) {
 		AddVertex(&vertex, &ref[0]); //add the vertex
 		glm::normalize(ref[0]);      //normalize it 
 		AddVertex(&normal, &ref[0]); //and add the normal vector
@@ -178,6 +178,48 @@ void BezierCurveC::DeCasteljau(vector<glm::vec2> *points)
 	SplitCurve(points, left, right);
 	DeCasteljau(left);
 	DeCasteljau(right);
+}
+
+bool BezierCurveC::SplitEndCondition(vector<glm::vec2>& points)
+{
+	//distance
+	if (glm::distance(points[0], points[3]) < END_DISTANCE
+		&& glm::distance(points[0], points[1]) < END_DISTANCE
+		&& glm::distance(points[1], points[2]) < END_DISTANCE
+		&& glm::distance(points[2], points[3]) < END_DISTANCE)
+		return true;
+
+	//don't need the following conditions for practical use
+	//area - Bretschneider's formula
+	float a = glm::distance(points[0], points[1]);
+	float b = glm::distance(points[1], points[2]);
+	float c = glm::distance(points[2], points[3]);
+	float d = glm::distance(points[3], points[0]);
+	float s = (a + b + c + d) / 2;
+	float t1 = glm::angle(glm::normalize(points[1] - points[0]), glm::normalize(points[3] - points[0]));
+	float t2 = glm::angle(glm::normalize(points[1] - points[2]), glm::normalize(points[3] - points[2]));
+	float t = (t1 + t2) / 2;
+	double sqrArea = glm::abs((s - a) * (s - b) * (s - c) * (s - d) - a * b * c * d * glm::cos(t) * glm::cos(t));
+	//cout << a << " " << b << " " << c << " " << d << " " << "theta1: " << t1 << " theta2: " << t2 << "; sqrArea: " << sqrArea << endl;
+	if (sqrArea < END_SQR_AREA)
+		return true;
+
+	//flat
+	glm::vec2 v0 = glm::normalize(points[3] - points[0]);
+	glm::vec2 v1 = glm::normalize(points[1] - points[0]);
+	glm::vec2 v2 = glm::normalize(points[2] - points[1]);
+	glm::vec2 v3 = glm::normalize(points[3] - points[2]);
+
+	float a0 = glm::angle(v0, v1);
+	float a1 = glm::angle(v0, v2);
+	float a2 = glm::angle(v0, v3);
+
+	//cout << a0 << " " << a1 << " " << a2 << " " << endl;
+
+	if (a0 <= END_ANGLE && a1 <= END_ANGLE && a2 <= END_ANGLE)
+		return true;
+
+	return false;
 }
 
 void BezierCurveC::SplitCurve(vector<glm::vec2> *points, vector<glm::vec2> *left, vector<glm::vec2> *right)

@@ -11,6 +11,10 @@
 #include <glm/glm.hpp>
 #include "shapes.h"
 
+#define END_DISTANCE 1.0e-2
+#define END_SQR_AREA 1.0e-5
+#define END_ANGLE 1.0
+
 using namespace std;
 
 //derived class from ShapesC
@@ -55,6 +59,7 @@ private:
 	glm::vec2 GetBezierCurvePoint(float, glm::vec2, glm::vec2, glm::vec2, glm::vec2);
 	void DeCasteljau(vector<glm::vec2> *);
 	void SplitCurve(vector<glm::vec2> *, vector<glm::vec2> *, vector<glm::vec2> *);
+	bool SplitEndCondition(vector<glm::vec2>&);
 
 	//control points
 	BezierCurveControlPointsC* controlPts;

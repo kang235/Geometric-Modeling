@@ -25,6 +25,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/half_float.hpp>
+#include <glm/gtx/closest_point.hpp>
 #include "shaders.h"    
 #include "shapes.h"    
 #include "lights.h"  
@@ -35,7 +36,7 @@
 #pragma comment(lib, "freeglut.lib")
 
 #define PROMPT0 "Press arrow keys to adjust camera; Press CTRL+Z to undo the changes for points;"
-#define PROMPT1 "Press SHIFT to add a C1 continuity new point; Press ALT to enforce next point to be G1 continuity."
+#define PROMPT1 "Press SHIFT to add a C1 continuity new point for the new curve; Press ALT to enforce next point in the new curve to be G1 continuity."
 
 using namespace std;
 using namespace glm;
@@ -279,33 +280,28 @@ void Mouse(int button, int state, int x, int y)
 		glm::vec4 viewport = glm::vec4(0.0f, 0.0f, (float)wWindow, (float)hWindow);
 		glm::vec3 pos = glm::unProject(windowView, view, proj, viewport);
 
-		//cout << "World Location is " << "[" << pos.x << "'" << pos.y << "]" << endl;
+		//cout << "World Location is " << "[" << pos.x << "'" << pos.y << "'" << pos.z << "]" << endl;
 
 		if (g1triggered) { //if alt pressed, enforce next point to be on G1 continuity
 			g1triggered = false;
-
-			glm::vec2 p;
 
 			BezierCurveC *c = curves->at(curves->size() - 1);
 			glm::vec2 p2 = c->GetControlPoints()->GetP2();
 			glm::vec2 p3 = c->GetControlPoints()->GetP3();
 
-			if (p2.y - p3.y < p2.x - p3.x) 
+			glm::vec2 tmp = (p3 - p2) * 10.0f; //extend the line segment
+			glm::vec3 p = glm::closestPointOnLine(glm::vec3(pos.x, pos.y, 0), glm::vec3(p2, 0), glm::vec3(p3 + tmp, 0));
+
+			if (glm::dot((p2 - p3), (glm::vec2(p.x, p.y) - p3)) > 0)  //take care of reversed case
 			{
-				if ((p2.y - p3.y) * (p3.y - pos.y) < 0) //take care of inverse case
-				{
-					pos.y = p3.y - pos.y + p3.y;
-				}
-				pos.x = (pos.y - p3.y)*(p2.x - p3.x) / (p2.y - p3.y) + p3.x; //put the point on tangent line
+				glm::vec2 s = p3 + (p3 - glm::vec2(p.x, p.y)); //reverse it
+				pos.x = s.x;  pos.y = s.y;
 			}
-			else
-			{
-				if ((p2.x - p3.x) * (p3.x - pos.x) < 0) //take care of inverse case
-				{
-					pos.x = p3.x - pos.x + p3.x;
-				}
-				pos.y = (pos.x - p3.x)*(p2.y - p3.y) / (p2.x - p3.x) + p3.y; //put the point on tangent line
+			else {
+				pos.x = p.x;  pos.y = p.y;
 			}
+
+			//cout << p.x << " " << p.y << " " << p.z << " " << endl;
 
 		}
 
