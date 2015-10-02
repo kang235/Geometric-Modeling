@@ -46,7 +46,8 @@ public:
 	BezierCurveC(glm::vec2, glm::vec2, glm::vec2, glm::vec2, int);
 	BezierCurveControlPointsC* GetControlPoints();
 	void SetControlPoints(BezierCurveControlPointsC*);
-
+	glm::vec2 GetC1NextPoint();
+	glm::vec2 GetG1NextPoint(float);
 	virtual void Render();
 private:
 	void InitArrays();

@@ -207,6 +207,26 @@ void BezierCurveC::SetControlPoints(BezierCurveControlPointsC* p)
 	controlPts = p;
 }
 
+glm::vec2 BezierCurveC::GetC1NextPoint()
+{
+	glm::vec2 p;
+
+	p.x = 2 * controlPts->GetP3().x - controlPts->GetP2().x;
+	p.y = 2 * controlPts->GetP3().y - controlPts->GetP2().y;
+
+	return p;
+}
+
+glm::vec2 BezierCurveC::GetG1NextPoint(float k)
+{
+	glm::vec2 p;
+
+	p.x = (controlPts->GetP3().x - controlPts->GetP2().x) / k + controlPts->GetP3().x;
+	p.y = (controlPts->GetP3().y - controlPts->GetP2().y) / k + controlPts->GetP3().y;
+
+	return p;
+}
+
 //Bezier Curve
 void BezierCurveC::InitArrays()
 {

@@ -227,8 +227,8 @@ void SpecKbdPress(int a, int x, int y)
 		if (n % 4 == 1 && n > 4)
 		{
 			glm::vec2 p;
-			p.x = 2 * (*points)[n - 1].x - (*points)[n - 3].x;
-			p.y = 2 * (*points)[n - 1].y - (*points)[n - 3].y;
+
+			p = curves->at(curves->size() - 1)->GetC1NextPoint();
 			points->push_back(p);
 
 			cout << "Shift pressed - enforce C1 continuity" << endl;
@@ -285,12 +285,16 @@ void Mouse(int button, int state, int x, int y)
 			g1triggered = false;
 
 			glm::vec2 p;
-			int n = points->size();
-			float k = glm::distance((*points)[n - 1], glm::vec2(pos.x, pos.y));
-			//float k = 1;
-			cout << k << endl;
-			pos.x = (GLfloat)(((*points)[n - 1].x - (*points)[n - 3].x) / k + (*points)[n - 1].x);
-			pos.y = (GLfloat)(((*points)[n - 1].y - (*points)[n - 3].y) / k + (*points)[n - 1].y);
+
+			BezierCurveC *c = curves->at(curves->size() - 1);
+			glm::vec2 p2 = c->GetControlPoints()->GetP2();
+			glm::vec2 p3 = c->GetControlPoints()->GetP3();
+
+			if ((p2.y - p3.y) * (p3.y - pos.y) < 0) //take care of inverse case
+			{
+				pos.y = p3.y - pos.y + p3.y;
+			}
+			pos.x = (pos.y - p3.y)*(p2.x - p3.x) / (p2.y - p3.y) + p3.x; //put the point on tangent line
 		}
 
 		vector<glm::vec2> &p = *points;
