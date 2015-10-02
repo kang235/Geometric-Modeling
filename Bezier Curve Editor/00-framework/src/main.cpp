@@ -193,7 +193,7 @@ void Kbd(unsigned char a, int x, int y)
 		case 26: 
 		{
 			cout << "Ctrl + Z pressed - Undo" << endl; 
-
+			g1triggered = false;  //clear alt switch
 			//count points remaining that can not form a curve
 			int n = points->size() % 4; 
 
@@ -290,11 +290,23 @@ void Mouse(int button, int state, int x, int y)
 			glm::vec2 p2 = c->GetControlPoints()->GetP2();
 			glm::vec2 p3 = c->GetControlPoints()->GetP3();
 
-			if ((p2.y - p3.y) * (p3.y - pos.y) < 0) //take care of inverse case
+			if (p2.y - p3.y < p2.x - p3.x) 
 			{
-				pos.y = p3.y - pos.y + p3.y;
+				if ((p2.y - p3.y) * (p3.y - pos.y) < 0) //take care of inverse case
+				{
+					pos.y = p3.y - pos.y + p3.y;
+				}
+				pos.x = (pos.y - p3.y)*(p2.x - p3.x) / (p2.y - p3.y) + p3.x; //put the point on tangent line
 			}
-			pos.x = (pos.y - p3.y)*(p2.x - p3.x) / (p2.y - p3.y) + p3.x; //put the point on tangent line
+			else
+			{
+				if ((p2.x - p3.x) * (p3.x - pos.x) < 0) //take care of inverse case
+				{
+					pos.x = p3.x - pos.x + p3.x;
+				}
+				pos.y = (pos.x - p3.x)*(p2.y - p3.y) / (p2.x - p3.x) + p3.y; //put the point on tangent line
+			}
+
 		}
 
 		vector<glm::vec2> &p = *points;
