@@ -104,7 +104,7 @@ BezierCurveC::BezierCurveC(vector<glm::vec2> *points)
 	InitArrays();
 }
 
-//default constructor
+//default constructor (with De Casteljau Algrithom)
 BezierCurveC::BezierCurveC()
 {
 	vector<glm::vec2> *points = new vector<glm::vec2>();
@@ -190,6 +190,7 @@ bool BezierCurveC::SplitEndCondition(vector<glm::vec2>& points)
 		return true;
 
 	//don't need the following conditions for practical use
+
 	//area - Bretschneider's formula
 	float a = glm::distance(points[0], points[1]);
 	float b = glm::distance(points[1], points[2]);
@@ -213,9 +214,7 @@ bool BezierCurveC::SplitEndCondition(vector<glm::vec2>& points)
 	float a0 = glm::angle(v0, v1);
 	float a1 = glm::angle(v0, v2);
 	float a2 = glm::angle(v0, v3);
-
 	//cout << a0 << " " << a1 << " " << a2 << " " << endl;
-
 	if (a0 <= END_ANGLE && a1 <= END_ANGLE && a2 <= END_ANGLE)
 		return true;
 

@@ -11,6 +11,7 @@
 #include <glm/glm.hpp>
 #include "shapes.h"
 
+//end conditions for De Casteljau
 #define END_DISTANCE 1.0e-2
 #define END_SQR_AREA 1.0e-5
 #define END_ANGLE 1.0

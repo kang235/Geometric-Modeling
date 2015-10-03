@@ -2,7 +2,7 @@
 /* Framework for CGT 581-G Geometric Modeling
    (C) Bedrich Benes 2014
    bbenes ~ at ~ purdue.edu       */
-   /**********************************/
+/**********************************/
 
 #include <algorithm>
 #include <string>
@@ -43,10 +43,10 @@ using namespace glm;
 
 bool needRedisplay = false;
 //ShapesC* sphere;
-CircleC* circle;
+CircleC* circle; //indicating the control points
 //BezierCurveC* curve;
-vector<glm::vec2>* points = new vector<glm::vec2>();
-vector<BezierCurveC*>* curves = new vector<BezierCurveC*>();
+vector<glm::vec2>* points = new vector<glm::vec2>(); //points container
+vector<BezierCurveC*>* curves = new vector<BezierCurveC*>(); //curves container
 bool g1triggered = false;
 
 //shader program ID
@@ -146,11 +146,13 @@ void RenderObjects()
 
 	vector<glm::vec2> &p = *points;
 
+	//draw points(circles)
 	for (vector<glm::vec2>::iterator i = p.begin(); i != p.end(); ++i) {
 		glm::mat4 m = glm::translate(glm::mat4(1.0), glm::vec3(i->x, i->y, 0));
 		Points(m);
 	}
 
+	//draw curves
 	for (vector<BezierCurveC *>::iterator i = curves->begin(); i != curves->end(); ++i) {
 		Arm(*i, glm::mat4(1.0));
 	}
@@ -198,7 +200,7 @@ void Kbd(unsigned char a, int x, int y)
 			//count points remaining that can not form a curve
 			int n = points->size() % 4; 
 
-			if (n == 1 && points->size() > 4) { 
+			if (n == 1 && points->size() > 4) { //should start from the 2nd curve
 				curves->pop_back();
 				//the 1st point is the 4th point of last curve, pop twice
 				points->pop_back();
@@ -225,7 +227,7 @@ void SpecKbdPress(int a, int x, int y)
 	if (state == GLUT_ACTIVE_SHIFT)
 	{
 		int n = points->size();
-		if (n % 4 == 1 && n > 4)
+		if (n % 4 == 1 && n > 4) //should start from the 2nd curve
 		{
 			glm::vec2 p;
 
@@ -238,13 +240,12 @@ void SpecKbdPress(int a, int x, int y)
 	else if (state == GLUT_ACTIVE_ALT)
 	{
 		int n = points->size();
-		if (n % 4 == 1 && n > 4)
+		if (n % 4 == 1 && n > 4) //should start from the 2nd curve
 		{
-			g1triggered = true;
+			g1triggered = true; //G1 switch on
 			cout << "ALT pressed - enforce G1 continuity" << endl;
 		}
 	}
-
 
 	switch (a)
 	{
@@ -276,6 +277,8 @@ void Mouse(int button, int state, int x, int y)
 {
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
 		//cout << "Location is " << "[" << x << "'" << y << "]" << endl;
+
+		//turn screen coordinate to world coordinate
 		glm::vec3 windowView = glm::vec3(wWindow - x, y, 1);
 		glm::vec4 viewport = glm::vec4(0.0f, 0.0f, (float)wWindow, (float)hWindow);
 		glm::vec3 pos = glm::unProject(windowView, view, proj, viewport);
@@ -283,7 +286,7 @@ void Mouse(int button, int state, int x, int y)
 		//cout << "World Location is " << "[" << pos.x << "'" << pos.y << "'" << pos.z << "]" << endl;
 
 		if (g1triggered) { //if alt pressed, enforce next point to be on G1 continuity
-			g1triggered = false;
+			g1triggered = false; //switch off
 
 			BezierCurveC *c = curves->at(curves->size() - 1);
 			glm::vec2 p2 = c->GetControlPoints()->GetP2();
@@ -300,9 +303,7 @@ void Mouse(int button, int state, int x, int y)
 			else {
 				pos.x = p.x;  pos.y = p.y;
 			}
-
 			//cout << p.x << " " << p.y << " " << p.z << " " << endl;
-
 		}
 
 		vector<glm::vec2> &p = *points;
